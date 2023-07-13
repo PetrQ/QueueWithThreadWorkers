@@ -4,8 +4,8 @@
 class IThreadWorker
 {
 public:
-     virtual start( bool val ) = 0;
-     virtual stop( bool val ) = 0;
+     virtual void start( bool val ) = 0;
+     virtual void stop( bool val ) = 0;
 };
 
 #endif // ITHREADWORKER_H
