@@ -4,8 +4,9 @@
 #include <iostream>
 #include <functional>
 #include <algorithm>
-#include <memory>
 #include <list>
+
+#include "IThreadWorker.h"
 
 class IMessageQueueEvents
 {
@@ -16,61 +17,55 @@ public:
      virtual void on_lwm() = 0;
 };
 
-class MessageQueueEvents : public IMessageQueueEvents
+class Manager : public IMessageQueueEvents
 {
 public:
-     using CallbackFunction = std::function< void( bool ) >;
-     using CallbackHandler = std::shared_ptr< CallbackFunction >;
-     using WeakCallbackHandler = std::weak_ptr< CallbackFunction >;
-
      void on_start() override
      {
           std::cout << "CALL STRAT " << std::endl;
-          triggerSubscribers( m_subscribersWork, true );
+          startSubscribers( true );
      }
      void on_stop() override
      {
           std::cout << "CALL STOP " << std::endl;
-          triggerSubscribers( m_subscribersWork, false );
+          startSubscribers( false );
      }
      void on_hwm() override
      {
-          triggerSubscribers( m_subscribersPause, false );
+          pauseSubscribers( true );
      }
      void on_lwm() override
      {
-          triggerSubscribers( m_subscribersPause, false );
+          pauseSubscribers( false );
      }
 
-     void addToManaged( std::weak_ptr< CallbackFunction > )
-     {}
-
-     MessageQueueEvents::CallbackHandler subscribeToPause( const CallbackFunction& callback )
+     WorkerHandler addToManaged( WorkerHandler worker )
      {
-          auto handler = std::make_shared< CallbackFunction >( callback );
-          m_subscribersPause.emplace_back( std::weak_ptr< CallbackFunction >( handler ) );
-          return handler;
-     }
-     MessageQueueEvents::CallbackHandler subscribeToWork( const CallbackFunction& callback )
-     {
-          auto handler = std::make_shared< CallbackFunction >( callback );
-          m_subscribersWork.emplace_back( std::weak_ptr< CallbackFunction >( handler ) );
-          return handler;
+          m_subscribers.emplace_back( WeakWorkerHandler( worker ) );
+          return worker;
      }
 
 private:
-     void triggerSubscribers( std::list< WeakCallbackHandler >& subscribers, bool val )
+     void startSubscribers( bool val )
      {
-          subscribers.remove_if( [ val ]( const WeakCallbackHandler& handler ) { return handler.expired(); } );
+          m_subscribers.remove_if( [ val ]( const WeakWorkerHandler& handler ) { return handler.expired(); } );
 
-          auto caller = [ val ]( WeakCallbackHandler& weak_handler ) { ( *weak_handler.lock() )( val ); };
+          auto caller = [ val ]( WeakWorkerHandler& weak_handler ) { ( weak_handler.lock() )->start( val ); };
 
-          std::for_each( subscribers.begin(), subscribers.end(), caller );
+          std::for_each( m_subscribers.begin(), m_subscribers.end(), caller );
+     }
+
+     void pauseSubscribers( bool val )
+     {
+          m_subscribers.remove_if( [ val ]( const WeakWorkerHandler& handler ) { return handler.expired(); } );
+
+          auto caller = [ val ]( WeakWorkerHandler& weak_handler ) { ( weak_handler.lock() )->pause( val ); };
+
+          std::for_each( m_subscribers.begin(), m_subscribers.end(), caller );
      }
 
 private:
-     std::list< WeakCallbackHandler > m_subscribersWork;
-     std::list< WeakCallbackHandler > m_subscribersPause;
+     std::list< WeakWorkerHandler > m_subscribers;
 };
 
 #endif // IMESSAGEQUEUEEVENTS_H

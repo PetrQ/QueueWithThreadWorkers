@@ -9,6 +9,8 @@
 #include <sstream>
 #include <iostream>
 
+#include "IThreadWorker.h"
+
 const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
 std::mutex cout_lock;
 
@@ -30,7 +32,7 @@ void logg( const std::string& mess, void* const adress = nullptr )
 }
 
 template< typename T >
-class ThreadWorker
+class ThreadWorker : public IThreadWorker
 {
 protected:
      int m_msDelay;
@@ -46,8 +48,8 @@ public:
      explicit ThreadWorker( int msDelay );
      virtual ~ThreadWorker();
 
-     void start( bool val );
-     void pause( bool val );
+     void start( bool val ) override final;
+     void pause( bool val ) override final;
 
 private:
      virtual std::thread::id run(); //запускает run_safe() в потоке
