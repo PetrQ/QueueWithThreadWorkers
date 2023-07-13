@@ -24,7 +24,7 @@ int main()
      std::this_thread::sleep_for( std::chrono::seconds( 2 ) );
      manager.on_stop();
 
-     std::cout << "MAIN FINISH " << std::endl;
+     logg( " MAIN FINISH " );
 
      return 0;
 }
