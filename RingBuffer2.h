@@ -11,6 +11,8 @@
 #include <sstream>
 #include <string>
 
+namespace pkus {
+
 /// Кольцевой расширяемый буфер, с динамическим выделением памяти.
 /// T обязан иметь пустой конструктор и конструктор копирования или оператор присваивания
 
@@ -155,8 +157,6 @@ public:
      {
           if( !m_size )
                throw std::range_error( "size cannot be zero" );
-
-          std::cout << " pop " << m_p[ m_begin ] << std::endl;
 
           T ret = std::move( m_p[ m_begin ] );
           m_begin = ( m_begin + 1 ) % m_cap;
@@ -374,3 +374,5 @@ RingBuffer< T >& RingBuffer< T >::operator=( RingBuffer&& other )
 
      return *this;
 }
+
+} // namespace pkus

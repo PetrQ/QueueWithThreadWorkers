@@ -5,31 +5,9 @@
 #include <atomic>
 #include <condition_variable>
 
-#include <chrono>
-#include <sstream>
-#include <iostream>
-
 #include "IThreadWorker.h"
 
-const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
-std::mutex cout_lock;
-
-void logg( const std::string& mess, void* const adress = nullptr )
-{
-     std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
-     double msec = std::chrono::duration_cast< std::chrono::milliseconds >( now - start ).count();
-
-     std::stringstream ss;
-     ss << "ms " << msec << " " << mess;
-     if( adress )
-          ss << " from: " << adress;
-     ss << std::endl;
-
-     {
-          std::lock_guard< std::mutex > lock( cout_lock );
-          std::cerr << ss.str() << ::std::flush;
-     }
-}
+namespace pkus {
 
 //https://dev.to/glpuga/multithreading-by-example-the-stuff-they-didn-t-tell-you-4ed8
 
@@ -50,15 +28,15 @@ public:
      explicit ThreadWorker( int msDelay );
      virtual ~ThreadWorker();
 
-     void start( bool val ) override final;
-     void pause( bool val ) override final;
+     void start( bool val ) override;
+     void pause( bool val ) override;
 
 private:
      virtual std::thread::id run(); //запускает run_safe() в потоке
-     virtual void work( bool pause )
+     virtual void work()
      {
           std::stringstream ss;
-          ss << " Worker" << m_msDelay << ' ' << std::this_thread::get_id() << " DO " << pause;
+          ss << " Worker" << m_msDelay << ' ' << std::this_thread::get_id() << " DO ";
           logg( ss.str(), this );
      };
      void thread_work();
@@ -139,10 +117,12 @@ void ThreadWorker< T >::thread_work()
           m_cv.wait_for( lock, m_max_sleep_interval, [ this ]() { return static_cast< bool >( !m_pause ); } );
           if( !m_pause )
           {
-               work( m_pause );
+               work();
                std::this_thread::sleep_for( std::chrono::milliseconds( this->m_msDelay ) );
           }
      }
 }
+
+} // namespace pkus
 
 #endif // THREADWORKER_H

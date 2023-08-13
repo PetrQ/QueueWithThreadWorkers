@@ -5,4 +5,13 @@ project(TestCallBackManage LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(TestCallBackManage main.cpp ImessageQueueEvents.h ThreadWorker.h IThreadWorker.h RingBuffer2.h)
+add_executable(TestCallBackManage main.cpp
+    ImessageQueueEvents.h
+    ThreadsManager.h
+    IThreadWorker.h
+    ThreadWorker.h
+    Reader.h
+    Writer.h
+    RingBuffer2.h
+    MessageQueue.h
+)
