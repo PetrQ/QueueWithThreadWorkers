@@ -32,10 +32,12 @@ public:
      }
      void on_hwm() override
      {
+          std::cout << "CALL HWM " << std::endl;
           pauseSubscribers( true );
      }
      void on_lwm() override
      {
+          std::cout << "CALL LWM " << std::endl;
           pauseSubscribers( false );
      }
 

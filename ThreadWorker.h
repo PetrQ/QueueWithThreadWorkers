@@ -31,6 +31,8 @@ void logg( const std::string& mess, void* const adress = nullptr )
      }
 }
 
+//https://dev.to/glpuga/multithreading-by-example-the-stuff-they-didn-t-tell-you-4ed8
+
 template< typename T >
 class ThreadWorker : public IThreadWorker
 {
@@ -53,10 +55,10 @@ public:
 
 private:
      virtual std::thread::id run(); //запускает run_safe() в потоке
-     virtual void work()
+     virtual void work( bool pause )
      {
           std::stringstream ss;
-          ss << " Worker" << m_msDelay << ' ' << std::this_thread::get_id() << " DO ";
+          ss << " Worker" << m_msDelay << ' ' << std::this_thread::get_id() << " DO " << pause;
           logg( ss.str(), this );
      };
      void thread_work();
@@ -107,6 +109,10 @@ void ThreadWorker< T >::start( bool val )
 template< typename T >
 void ThreadWorker< T >::pause( bool val )
 {
+     std::stringstream ss;
+     ss << " Pause worker" << m_msDelay << ' ' << m_pThread.get_id();
+     logg( ss.str(), this );
+
      m_pause = val;
      m_cv.notify_all();
 }
@@ -133,7 +139,7 @@ void ThreadWorker< T >::thread_work()
           m_cv.wait_for( lock, m_max_sleep_interval, [ this ]() { return static_cast< bool >( !m_pause ); } );
           if( !m_pause )
           {
-               work();
+               work( m_pause );
                std::this_thread::sleep_for( std::chrono::milliseconds( this->m_msDelay ) );
           }
      }
