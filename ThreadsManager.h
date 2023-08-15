@@ -59,6 +59,8 @@ private:
      std::list< WeakWorkerHandler > m_subscribers;
 };
 
+using ManagerPtr = ::std::shared_ptr< Manager >;
+
 } // namespace pkus
 
 #endif // THREADMANAGER_H

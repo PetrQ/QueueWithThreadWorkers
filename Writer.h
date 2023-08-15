@@ -10,18 +10,53 @@ template< typename T >
 class Writer : public ThreadWorker< T >
 {
 public:
-     explicit Writer( MessageQueuePtr queue )
-          : m_queue( queue )
+     explicit Writer( MessageQueuePtr< T > queue, int msDelay )
+          : ThreadWorker< T >( msDelay )
+          , m_queue( queue )
      {}
 
      void pause( bool val ) override {};
 
 private:
-     virtual void work() override final {}; //подумать о доступе к очереди в параллельном потоке
+     virtual void work() override final
+     {
+          T message;
+          Writer::create_message( message, ++m_counter );
+          RetCode ret = m_queue->put( message );
+
+          std::stringstream ss;
+          ss << " Writer " << std::this_thread::get_id() << " put message " << message;
+          ss << " ReturnCode " << static_cast< int >( ret );
+          logg( ss.str() );
+     }; //подумать о доступе к очереди в параллельном потоке
+
+     static void create_message( T& message, std::uint32_t count );
 
 private:
-     MessageQueuePtr m_queue;
+     MessageQueuePtr< T > m_queue;
+     std::uint32_t m_counter = 0;
 };
+
+template< typename T >
+void Writer< T >::create_message( T& message, std::uint32_t count )
+{
+     logg( "unknown type, can't create message" );
+}
+
+template<>
+void Writer< int >::create_message( int& message, std::uint32_t count ) //спецификация шаблона для int
+{
+     message = static_cast< int >( count );
+}
+
+template<>
+void Writer< std::string >::create_message( std::string& message,
+                                            std::uint32_t count ) //спецификация шаблона для std::string
+{
+     std::stringstream ss;
+     ss << " Messge number " << count << " from writer " << std::this_thread::get_id();
+     message = ss.str();
+}
 
 } // namespace pkus
 

@@ -3,10 +3,12 @@
 #include "ThreadsManager.h"
 #include "ImessageQueueEvents.h"
 #include "ThreadWorker.h"
+#include "Writer.h"
+#include "Reader.h"
 
 using namespace std;
 
-int main()
+int main0()
 {
      using namespace pkus;
 
@@ -37,6 +39,34 @@ int main()
      manager.on_stop();
 
      logg( " MAIN FINISH " );
+
+     return 0;
+}
+
+int main()
+{
+     using namespace pkus;
+
+     typedef int MessType;
+     ManagerPtr manager = std::make_shared< Manager >();
+     MessageQueuePtr< MessType > liveQueue = std::make_shared< MessageQueue< int > >( 300, 5, 27 );
+     Reader< MessType > wr1( liveQueue, 1000 );
+     Reader< MessType > wr2( liveQueue, 2000 );
+     Reader< MessType > wr3( liveQueue, 2000 );
+
+     Writer< MessType > wr4( liveQueue, 500 );
+
+     WorkerHandler handle_w_1 = manager->addToManaged( WorkerHandler( &wr1, []( void* ) {} ) );
+     WorkerHandler handle_w_2 = manager->addToManaged( WorkerHandler( &wr2, []( void* ) {} ) );
+     WorkerHandler handle_w_3 = manager->addToManaged( WorkerHandler( &wr3, []( void* ) {} ) );
+     WorkerHandler handle_w_4 = manager->addToManaged( WorkerHandler( &wr4, []( void* ) {} ) );
+
+     liveQueue->setEvents( manager );
+     liveQueue->run();
+
+     std::this_thread::sleep_for( std::chrono::seconds( 10 ) );
+
+     liveQueue->stop();
 
      return 0;
 }
