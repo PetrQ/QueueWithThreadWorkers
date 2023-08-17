@@ -2,7 +2,7 @@
 #define MESSAGEQUEUE_H
 
 #include "ImessageQueueEvents.h"
-#include "RingBuffer2.h"
+#include "RingBuffer.h"
 
 #include <thread>
 #include <atomic>
@@ -17,6 +17,7 @@ enum class RetCode
      HWM = -1,
      NO_SPACE = -2,
      STOPPED = -3,
+     UNAVAILABLE = -4
 };
 
 template< typename T >
@@ -33,6 +34,7 @@ public:
      ~MessageQueue()
      {
           std::cout << "FIN QUEUE size " << m_container.size() << std::endl;
+          //даем сообщение об остановке читателем
      }
 
      void setEvents( IMessageQueueEventsPtr events )
@@ -86,7 +88,9 @@ public:
      {
           //         std::lock_guard< std::mutex > lk( m_mutex );
           if( !m_isStrted )
+          {
                return RetCode::STOPPED;
+          }
 
           message = m_container.popFront();
           std::cout << "GET size " << m_container.size() << std::endl;
@@ -101,15 +105,15 @@ public:
      RetCode threadGet( T& message )
      {
           std::unique_lock< std::mutex > lock { m_mutex };
-          while( true )
+
+          m_cv.wait_for(
+               lock, std::chrono::milliseconds( 100 ), [ this ]() { return static_cast< bool >( m_not_empty ); } );
+          if( m_not_empty )
           {
-               m_cv.wait_for(
-                    lock, std::chrono::milliseconds( 100 ), [ this ]() { return static_cast< bool >( m_not_empty ); } );
-               if( m_not_empty )
-               {
-                    return get( message );
-               }
+               return get( message );
           }
+
+          return RetCode::UNAVAILABLE;
      }
 
 private:

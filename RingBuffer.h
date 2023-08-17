@@ -22,10 +22,6 @@ class RingBuffer
           m_begin {}; //индекс первого элемента в очереди (это тот элемент, который можно извлечь из очереди с помощью pop())
      std::size_t
           m_end {}; //индекс первого свободного элемента в очереди (это тот элемент, в который можно присвоить новое значение с помощью push())
-     const static std::size_t m_delta
-          = 10; //на сколько увеличиваем емкость при перераспределении памяти (TODO лучше по множителю)
-
-     //проверить работу Init, перевести m_delta на множитель
 
      template< typename ContainerType >
      class iterator_tmpl
@@ -79,8 +75,8 @@ class RingBuffer
      typedef iterator_tmpl< const RingBuffer< T >* > const_iterator;
 
 public:
-     RingBuffer();
-     RingBuffer( size_t size, const T& defaultVal = T() );
+     RingBuffer( size_t size = 11 );
+     RingBuffer( size_t size, const T& defaultVal );
      RingBuffer( std::initializer_list< T > init );
      RingBuffer( const RingBuffer& other );
      RingBuffer( RingBuffer&& other );
@@ -95,10 +91,10 @@ public:
           {
                if( m_size == ( m_cap - 1 ) )
                {
-                    size_t newSz = m_cap + m_delta;
+                    size_t newSz = m_cap * 2;
                     T* tmpPtr = new T[ newSz ];
 
-                    int ind = m_delta;
+                    int ind = m_cap;
                     for( auto& el : *this )
                     {
                          tmpPtr[ ind++ ] = std::move( el );
@@ -106,7 +102,7 @@ public:
 
                     delete[] m_p;
                     m_p = tmpPtr;
-                    m_begin = m_delta;
+                    m_begin = m_cap;
                     m_end = m_begin + m_size;
                     m_cap = newSz;
                }
@@ -132,7 +128,7 @@ public:
           {
                //тут должно быть исключение для полного соотвествия заданию
                //throw std::range_error( "container is full" );
-               size_t newSz = m_cap + m_delta;
+               size_t newSz = m_cap * 2;
                T* tmpPtr = new T[ newSz ];
 
                int ind = 0;
@@ -262,9 +258,9 @@ private:
 };
 
 template< typename T >
-RingBuffer< T >::RingBuffer()
-     : m_p( new T[ m_delta + 1 ] )
-     , m_cap { m_delta + 1 }
+RingBuffer< T >::RingBuffer( size_t size )
+     : m_p( new T[ size + 1 ] )
+     , m_cap { size + 1 }
      , m_size { 0 }
      , m_begin { 0 }
      , m_end { 0 }
@@ -274,9 +270,9 @@ template< typename T >
 RingBuffer< T >::RingBuffer( size_t size, const T& defaultVal )
      : m_p( new T[ size + 1 ] )
      , m_cap { size + 1 }
-     , m_size { 0 }
+     , m_size { size }
      , m_begin { 0 }
-     , m_end { 0 }
+     , m_end { size }
 {
      for( auto& el : *this )
           el = defaultVal;

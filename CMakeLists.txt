@@ -13,6 +13,6 @@ add_executable(TestCallBackManage main.cpp
     ThreadWorker.h
     Reader.h
     Writer.h
-    RingBuffer2.h
+    RingBuffer.h
     MessageQueue.h
 )

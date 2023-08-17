@@ -2,6 +2,7 @@
 #define READER_H
 
 #include "MessageQueue.h"
+#include "IThreadWorker.h"
 
 namespace pkus {
 
@@ -59,8 +60,11 @@ void ReaderWorker< T >::thread_work()
 {
      while( m_work )
      {
-          T message;
+          T message {}; //очищаем предыдущее состояние
           RetCode ret = m_queue->threadGet( message );
+
+          if( ret == RetCode::UNAVAILABLE )
+               continue;
 
           std::stringstream ss;
           ss << " Reader " << m_msDelay << ' ' << m_id << " get message " << message;

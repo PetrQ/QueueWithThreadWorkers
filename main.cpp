@@ -65,10 +65,10 @@ int main()
 
           //Запускаем обработку
           liveQueue->run();
-          std::this_thread::sleep_for( std::chrono::seconds( 10 ) );
+          std::this_thread::sleep_for( std::chrono::seconds( 5 ) );
 
           //Завершаем обработку
-          //          liveQueue->stop();
+          liveQueue->stop();
      } //автоматическое завершение
      std::cout << "MAIN FINISH" << std::endl;
      std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
