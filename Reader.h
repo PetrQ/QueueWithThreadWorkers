@@ -1,39 +1,87 @@
 #ifndef READER_H
 #define READER_H
 
-#include "ThreadWorker.h"
 #include "MessageQueue.h"
 
 namespace pkus {
 
 template< typename T >
-class Reader : public ThreadWorker< T >
+class ReaderWorker
 {
 public:
-     explicit Reader( MessageQueuePtr< T > queue, int msDelay )
-          : ThreadWorker< T >( msDelay )
-          , m_queue( queue )
-     {}
+     explicit ReaderWorker( MessageQueuePtr< T > queue, int msDelay = 0 );
+     ~ReaderWorker();
+
+     static int instanceId();
 
 private:
-     virtual void work() override final
-     {
-          T message;
-          RetCode ret = m_queue->get( message );
-          Reader::handle_message( message, ret );
-     }; //подумать о доступе к очереди в параллельном потоке
+     void thread_work();
 
-     static void handle_message( T& message, RetCode ret )
+private:
+     int m_msDelay;
+     std::thread m_pThread;
+     std::atomic_bool m_work { false };
+     MessageQueuePtr< T > m_queue;
+
+     int m_id = 0;
+};
+
+template< typename T >
+ReaderWorker< T >::ReaderWorker( MessageQueuePtr< T > queue, int msDelay )
+     : m_msDelay( msDelay )
+     , m_queue( queue )
+     , m_id( ReaderWorker< T >::instanceId() )
+{
+     m_work = true;
+     m_pThread = std::thread( &ReaderWorker::thread_work, std::ref( *this ) );
+
+     std::stringstream ss;
+     ss << " Strat worker" << m_msDelay << ' ' << m_id << ' ' << m_pThread.get_id() << " run ";
+     logg( ss.str(), this );
+}
+
+template< typename T >
+ReaderWorker< T >::~ReaderWorker()
+{
+     if( m_pThread.joinable() )
      {
           std::stringstream ss;
-          ss << " Reader " << std::this_thread::get_id() << " get message " << message;
+          ss << " Stop worker" << m_msDelay << ' ' << m_id << ' ' << m_pThread.get_id();
+          logg( ss.str(), this );
+
+          m_work = false;
+          m_pThread.join();
+     }
+}
+
+template< typename T >
+void ReaderWorker< T >::thread_work()
+{
+     while( m_work )
+     {
+          T message;
+          RetCode ret = m_queue->threadGet( message );
+
+          std::stringstream ss;
+          ss << " Reader " << m_msDelay << ' ' << m_id << " get message " << message;
           ss << " ReturnCode " << static_cast< int >( ret );
           logg( ss.str() );
-     }
 
-private:
-     MessageQueuePtr< T > m_queue;
-};
+          if( ret == RetCode::STOPPED )
+          {
+               m_work = false;
+          }
+
+          std::this_thread::sleep_for( std::chrono::milliseconds( m_msDelay ) );
+     }
+}
+
+template< typename T >
+int ReaderWorker< T >::instanceId()
+{
+     static int id_counter = 0;
+     return id_counter++;
+}
 
 } // namespace pkus
 

@@ -9,6 +9,7 @@ add_executable(TestCallBackManage main.cpp
     ImessageQueueEvents.h
     ThreadsManager.h
     IThreadWorker.h
+    IThreadWorker.cpp
     ThreadWorker.h
     Reader.h
     Writer.h

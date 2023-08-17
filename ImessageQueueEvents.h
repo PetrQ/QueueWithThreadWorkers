@@ -1,12 +1,11 @@
 #ifndef IMESSAGEQUEUEEVENTS_H
 #define IMESSAGEQUEUEEVENTS_H
 
+#include <memory>
 #include <iostream>
 #include <functional>
 #include <algorithm>
 #include <list>
-
-#include "IThreadWorker.h"
 
 namespace pkus {
 

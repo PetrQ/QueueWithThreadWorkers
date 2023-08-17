@@ -4,7 +4,10 @@
 #include "ImessageQueueEvents.h"
 #include "RingBuffer2.h"
 
+#include <thread>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
 
 namespace pkus {
 
@@ -14,7 +17,6 @@ enum class RetCode
      HWM = -1,
      NO_SPACE = -2,
      STOPPED = -3,
-     NO_DATA = -4,
 };
 
 template< typename T >
@@ -25,7 +27,13 @@ public:
           : m_container( RingBuffer< T >( queue_size ) )
           , m_hwm( hwm )
           , m_lwm( lwm )
-          , m_isStrted( false ) {};
+          , m_isStrted( false )
+          , m_not_empty( false ) {};
+
+     ~MessageQueue()
+     {
+          std::cout << "FIN QUEUE size " << m_container.size() << std::endl;
+     }
 
      void setEvents( IMessageQueueEventsPtr events )
      {
@@ -45,6 +53,9 @@ public:
                return;
           m_isStrted = false;
           m_events->on_stop();
+
+          //даем сообщение об остановке читателем, они проснутся сами по таймауту
+          m_not_empty = true;
      };
      RetCode put( const T& message )
      {
@@ -60,6 +71,8 @@ public:
           {
                return RetCode::NO_SPACE;
           }
+          m_not_empty = m_container.size();
+          m_cv.notify_one();
 
           std::cout << "PUT size " << m_container.size() << std::endl;
           if( m_container.size() >= m_hwm )
@@ -71,20 +84,32 @@ public:
      }
      RetCode get( T& message )
      {
+          //         std::lock_guard< std::mutex > lk( m_mutex );
           if( !m_isStrted )
                return RetCode::STOPPED;
 
-          if( !m_container.size() )
-               return RetCode::NO_DATA;
-
-          std::lock_guard< std::mutex > lk( m_mutex );
           message = m_container.popFront();
           std::cout << "GET size " << m_container.size() << std::endl;
-          if( m_container.size() <= m_hwm )
+          if( m_container.size() <= m_lwm )
           {
                m_events->on_lwm();
           }
+          m_not_empty = m_container.size();
           return RetCode::OK;
+     }
+
+     RetCode threadGet( T& message )
+     {
+          std::unique_lock< std::mutex > lock { m_mutex };
+          while( true )
+          {
+               m_cv.wait_for(
+                    lock, std::chrono::milliseconds( 100 ), [ this ]() { return static_cast< bool >( m_not_empty ); } );
+               if( m_not_empty )
+               {
+                    return get( message );
+               }
+          }
      }
 
 private:
@@ -92,8 +117,11 @@ private:
      RingBuffer< T > m_container;
 
      std::atomic_bool m_isStrted;
-     std::mutex m_mutex;
+     std::atomic_bool m_not_empty;
      std::uint32_t m_hwm, m_lwm; // HighWaterMark, LowWaterMark
+
+     std::mutex m_mutex;
+     std::condition_variable m_cv;
 };
 
 template< typename T >

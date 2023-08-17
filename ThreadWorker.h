@@ -16,7 +16,6 @@ class ThreadWorker : public IThreadWorker
 {
 protected:
      int m_msDelay;
-
      std::thread m_pThread;
      std::atomic_bool m_pause { false };
      std::atomic_bool m_work { false };
@@ -87,6 +86,9 @@ void ThreadWorker< T >::start( bool val )
 template< typename T >
 void ThreadWorker< T >::pause( bool val )
 {
+     if( m_pause == val )
+          return;
+
      std::stringstream ss;
      ss << " Pause worker" << m_msDelay << ' ' << m_pThread.get_id();
      logg( ss.str(), this );

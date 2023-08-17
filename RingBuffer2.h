@@ -162,7 +162,7 @@ public:
           m_begin = ( m_begin + 1 ) % m_cap;
           --m_size;
 
-          print();
+          //print();
 
           return ret;
      }

@@ -15,8 +15,6 @@ public:
           , m_queue( queue )
      {}
 
-     void pause( bool val ) override {};
-
 private:
      virtual void work() override final
      {
@@ -25,12 +23,12 @@ private:
           RetCode ret = m_queue->put( message );
 
           std::stringstream ss;
-          ss << " Writer " << std::this_thread::get_id() << " put message " << message;
+          ss << " Writer" << ThreadWorker< T >::m_msDelay << " put message " << message;
           ss << " ReturnCode " << static_cast< int >( ret );
           logg( ss.str() );
      }; //подумать о доступе к очереди в параллельном потоке
 
-     static void create_message( T& message, std::uint32_t count );
+     void create_message( T& message, std::uint32_t count );
 
 private:
      MessageQueuePtr< T > m_queue;
@@ -46,7 +44,7 @@ void Writer< T >::create_message( T& message, std::uint32_t count )
 template<>
 void Writer< int >::create_message( int& message, std::uint32_t count ) //спецификация шаблона для int
 {
-     message = static_cast< int >( count );
+     message = m_msDelay * 100 + static_cast< int >( count );
 }
 
 template<>

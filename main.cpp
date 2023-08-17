@@ -43,33 +43,35 @@ int main0()
      return 0;
 }
 
+//1 ограничение буффера - исключение, 2 читатель с ожиданием
 int main()
 {
      using namespace pkus;
 
-     typedef int MessType;
-     //Создаем очередь и потоки писателей и читателей
-     MessageQueuePtr< MessType > liveQueue = std::make_shared< MessageQueue< int > >( 300, 5, 27 );
-     Reader< MessType > wr1( liveQueue, 1000 );
-     Reader< MessType > wr2( liveQueue, 2000 );
-     Reader< MessType > wr3( liveQueue, 2000 );
-     Writer< MessType > wr4( liveQueue, 500 );
+     {
+          typedef int MessType;
+          //Создаем очередь и потоки писателей и читателей
+          MessageQueuePtr< MessType > liveQueue = std::make_shared< MessageQueue< int > >( 20, 4, 17 );
+          Writer< MessType > wr1( liveQueue, 200 );
+          Writer< MessType > wr2( liveQueue, 300 );
+          ReaderWorker< MessType > rw( liveQueue, 500 );
 
-     //Собираем упрвление писателями/читателями
-     ManagerPtr manager = std::make_shared< Manager >();
-     WorkerHandler handle_w_1 = manager->addToManaged( WorkerHandler( &wr1, []( void* ) {} ) );
-     WorkerHandler handle_w_2 = manager->addToManaged( WorkerHandler( &wr2, []( void* ) {} ) );
-     WorkerHandler handle_w_3 = manager->addToManaged( WorkerHandler( &wr3, []( void* ) {} ) );
-     WorkerHandler handle_w_4 = manager->addToManaged( WorkerHandler( &wr4, []( void* ) {} ) );
-     liveQueue->setEvents( manager );
+          //Собираем упрвление писателями/читателями
+          ManagerPtr manager = std::make_shared< Manager >();
+          WorkerHandler handle_w_1 = manager->addToManaged( WorkerHandler( &wr1, []( void* ) {} ) );
+          WorkerHandler handle_w_2 = manager->addToManaged( WorkerHandler( &wr2, []( void* ) {} ) );
 
-     //Запускаем обработку
-     liveQueue->run();
+          liveQueue->setEvents( manager );
 
-     std::this_thread::sleep_for( std::chrono::seconds( 10 ) );
+          //Запускаем обработку
+          liveQueue->run();
+          std::this_thread::sleep_for( std::chrono::seconds( 10 ) );
 
-     //Завершаем обработку
-     liveQueue->stop();
+          //Завершаем обработку
+          //          liveQueue->stop();
+     } //автоматическое завершение
+     std::cout << "MAIN FINISH" << std::endl;
+     std::this_thread::sleep_for( std::chrono::seconds( 1 ) );
 
      return 0;
 }
