@@ -25,6 +25,8 @@ class RingBuffer
      const static std::size_t m_delta
           = 10; //на сколько увеличиваем емкость при перераспределении памяти (TODO лучше по множителю)
 
+     //проверить работу Init, перевести m_delta на множитель
+
      template< typename ContainerType >
      class iterator_tmpl
      {
