@@ -2,10 +2,7 @@
 #define ITHREADWORKER_H
 
 #include <memory>
-#include <chrono>
 #include <sstream>
-#include <iostream>
-#include <mutex>
 
 void logg( const std::string& mess, void* const adress = nullptr );
 

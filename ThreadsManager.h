@@ -1,6 +1,10 @@
 #ifndef THREADMANAGER_H
 #define THREADMANAGER_H
 
+#include <iostream>
+#include <algorithm>
+#include <list>
+
 #include "ImessageQueueEvents.h"
 #include "IThreadWorker.h"
 

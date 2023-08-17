@@ -26,7 +26,7 @@ private:
           ss << " Writer" << ThreadWorker< T >::m_msDelay << " put message " << message;
           ss << " ReturnCode " << static_cast< int >( ret );
           logg( ss.str() );
-     }; //подумать о доступе к очереди в параллельном потоке
+     };
 
      void create_message( T& message, std::uint32_t count );
 

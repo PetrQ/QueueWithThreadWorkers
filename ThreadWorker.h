@@ -31,7 +31,7 @@ public:
      void pause( bool val ) override;
 
 private:
-     virtual std::thread::id run(); //запускает run_safe() в потоке
+     virtual std::thread::id run();
      virtual void work()
      {
           std::stringstream ss;

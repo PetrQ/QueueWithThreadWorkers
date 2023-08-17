@@ -1,7 +1,3 @@
-/// @file
-/// @brief Кольцевой буфер, с динамическим выделением памяти.
-///
-/// @copyright Copyright (c) 2020 InfoTeCS. All Rights Reserved.
 #pragma once
 
 #include <initializer_list>
@@ -27,7 +23,8 @@ class RingBuffer
           m_begin {}; //индекс первого элемента в очереди (это тот элемент, который можно извлечь из очереди с помощью pop())
      std::size_t
           m_end {}; //индекс первого свободного элемента в очереди (это тот элемент, в который можно присвоить новое значение с помощью push())
-     const static std::size_t m_delta = 10; //на сколько увеличиваем емкость при перераспределении памяти
+     const static std::size_t m_delta
+          = 10; //на сколько увеличиваем емкость при перераспределении памяти (TODO лучше по множителю)
 
      template< typename ContainerType >
      class iterator_tmpl
@@ -130,8 +127,10 @@ public:
 
      void pushBack( const T& obj )
      {
-          if( m_size == ( m_cap - 1 ) )
+          if( m_size == ( m_cap - 1 ) ) //тут должно быть
           {
+               //тут должно быть исключение для полного соотвествия заданию
+               //throw std::range_error( "container is full" );
                size_t newSz = m_cap + m_delta;
                T* tmpPtr = new T[ newSz ];
 
@@ -161,8 +160,6 @@ public:
           T ret = std::move( m_p[ m_begin ] );
           m_begin = ( m_begin + 1 ) % m_cap;
           --m_size;
-
-          //print();
 
           return ret;
      }
