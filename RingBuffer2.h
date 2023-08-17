@@ -11,7 +11,6 @@ namespace pkus {
 
 /// Кольцевой расширяемый буфер, с динамическим выделением памяти.
 /// T обязан иметь пустой конструктор и конструктор копирования или оператор присваивания
-
 template< typename T >
 class RingBuffer
 {
@@ -251,20 +250,20 @@ private:
           m_begin = 0;
           m_end = size;
 
-          if( m_cap && size < ( m_cap - 1 ) ) //для нового обьекта m_cap == 0
+          if( m_cap && size < ( m_cap - 1 ) ) //используем старую память если ее достаточно
                return;
 
           delete[] m_p;
-          m_p = new T[ size + m_delta ];
-          m_cap = size + m_delta;
+          m_p = new T[ size + 1 ];
+          m_cap = size + 1;
      }
 };
 
 template< typename T >
 RingBuffer< T >::RingBuffer()
-     : m_p( new T[ m_delta ] )
+     : m_p( new T[ m_delta + 1 ] )
+     , m_cap { m_delta + 1 }
      , m_size { 0 }
-     , m_cap { m_delta }
      , m_begin { 0 }
      , m_end { 0 }
 {}
@@ -272,8 +271,8 @@ RingBuffer< T >::RingBuffer()
 template< typename T >
 RingBuffer< T >::RingBuffer( size_t size, const T& defaultVal )
      : m_p( new T[ size + 1 ] )
-     , m_size { 0 }
      , m_cap { size + 1 }
+     , m_size { 0 }
      , m_begin { 0 }
      , m_end { 0 }
 {
@@ -283,9 +282,9 @@ RingBuffer< T >::RingBuffer( size_t size, const T& defaultVal )
 
 template< typename T >
 RingBuffer< T >::RingBuffer( std::initializer_list< T > init )
-     : m_p( new T[ init.size() + m_delta ] )
+     : m_p( new T[ init.size() + 1 ] )
+     , m_cap { init.size() + 1 }
      , m_size { init.size() }
-     , m_cap { init.size() + m_delta }
      , m_begin { 0 }
      , m_end { init.size() }
 {
@@ -303,10 +302,10 @@ RingBuffer< T >::~RingBuffer()
 {
      delete[] m_p;
      m_p = nullptr;
+     m_cap = 0;
      m_size = 0;
      m_begin = 0;
      m_end = 0;
-     m_cap = 0;
 }
 
 template< typename T >
