@@ -17,7 +17,8 @@ enum class RetCode
      HWM = -1,
      NO_SPACE = -2,
      STOPPED = -3,
-     UNAVAILABLE = -4
+     IS_EMPTY = -4,
+     UNAVAILABLE = -5,
 };
 
 template< typename T >
@@ -69,8 +70,9 @@ public:
           {
                m_container.pushBack( message );
           }
-          catch( const std::range_error& ex )
+          catch( const std::out_of_range& ex )
           {
+               std::cout << ex.what() << std::endl;
                return RetCode::NO_SPACE;
           }
           m_not_empty = m_container.size();
@@ -92,7 +94,16 @@ public:
                return RetCode::STOPPED;
           }
 
-          message = m_container.popFront();
+          try
+          {
+               message = m_container.popFront();
+          }
+          catch( const std::out_of_range& ex )
+          {
+               std::cout << ex.what() << std::endl;
+               return RetCode::IS_EMPTY;
+          }
+
           std::cout << "GET size " << m_container.size() << std::endl;
           if( m_container.size() <= m_lwm )
           {

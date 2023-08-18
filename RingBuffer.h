@@ -125,7 +125,7 @@ public:
           if( m_size == ( m_cap - 1 ) ) //тут должно быть
           {
                //тут должно быть исключение для полного соотвествия заданию
-               //throw std::range_error( "container is full" );
+               //throw std::out_of_range( "container is full" );
                size_t newSz = m_cap * 2;
                T* tmpPtr = new T[ newSz ];
 
@@ -150,7 +150,7 @@ public:
      T popFront()
      {
           if( !m_size )
-               throw std::range_error( "size cannot be zero" );
+               throw std::out_of_range( "size cannot be zero" );
 
           T ret = std::move( m_p[ m_begin ] );
           m_begin = ( m_begin + 1 ) % m_cap;
@@ -162,7 +162,7 @@ public:
      void removeFront( size_t count )
      {
           if( m_size < count )
-               throw std::range_error( "count to deleting cannot be greater than the size" );
+               throw std::out_of_range( "count to deleting cannot be greater than the size" );
 
           m_begin = ( m_begin + count ) % m_cap;
           m_size -= count;
@@ -171,14 +171,14 @@ public:
      void removeBack( size_t count )
      {
           if( m_size < count )
-               throw std::range_error( "count to deleting cannot be greater than the size" );
+               throw std::out_of_range( "count to deleting cannot be greater than the size" );
 
           int tmp = int( m_end - count );
           m_end = tmp < 0 ? m_cap + tmp : tmp;
           m_size -= count;
      }
 
-     void print() const
+     void print() const noexcept
      {
           std::ostringstream out;
           out << "begin " << m_begin << " end " << m_end << " size " << m_size << " capacity " << m_cap << std::endl
@@ -187,22 +187,22 @@ public:
           std::cout << out.str();
      }
 
-     void clear()
+     void clear() noexcept
      {
           m_size = 0;
           m_begin = 0;
           m_end = 0;
      }
 
-     inline std::size_t size() const
+     inline std::size_t size() const noexcept
      {
           return m_size;
      }
-     inline std::size_t cap() const
+     inline std::size_t cap() const noexcept
      {
           return m_cap;
      }
-     inline bool isValid() const
+     inline bool isValid() const noexcept
      {
           return m_begin != m_end;
      }
@@ -226,7 +226,7 @@ public:
      T& operator[]( size_t index )
      {
           if( index >= m_size )
-               throw std::range_error( "index out of range" );
+               throw std::out_of_range( "index out of range" );
 
           std::cout << m_begin << ' ' << index << ' ' << ( m_begin + index ) % m_cap << std::endl;
           return m_p[ ( m_begin + index ) % m_cap ];
@@ -234,7 +234,7 @@ public:
      const T& operator[]( size_t index ) const
      {
           if( index >= m_size )
-               throw std::range_error( "index out of range" );
+               throw std::out_of_range( "index out of range" );
 
           return m_p[ ( m_begin + index ) % m_cap ];
      };
