@@ -19,7 +19,7 @@ int main()
           ReaderWorker< MessType > rw1( liveQueue, 250 );
           ReaderWorker< MessType > rw2( liveQueue, 250 );
 
-          //Собираем упрвление писателями/читателями
+          //Собираем упрвление писателями
           ManagerPtr manager = std::make_shared< Manager >();
           WorkerHandler handle_w_1 = manager->addToManaged( WorkerHandler( &wr1, []( void* ) {} ) );
           WorkerHandler handle_w_2 = manager->addToManaged( WorkerHandler( &wr2, []( void* ) {} ) );
