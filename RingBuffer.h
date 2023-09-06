@@ -105,7 +105,10 @@ public:
                     m_cap = newSz;
                }
 
-               m_begin = ( m_begin - 1 ) % m_cap;
+               if( m_begin )
+                    --m_begin;
+               else
+                    m_begin = m_cap - 1;
                m_p[ m_begin ] = *( --last );
                ++m_size;
           }
@@ -143,7 +146,9 @@ public:
           }
 
           m_p[ m_end ] = obj;
-          m_end = ( m_end + 1 ) % m_cap;
+          ++m_end;
+          if( m_end == m_cap )
+               m_end = 0;
           ++m_size;
      }
 
