@@ -14,7 +14,7 @@ namespace pkus {
 template< typename T >
 class RingBuffer
 {
-     T* m_p {}; //указатель на начало динамического массива
+     std::unique_ptr< T[] > m_p; //указатель на начало динамического массива
 
      std::size_t m_size {};  //актуальное количество элементов в очереди
      std::size_t m_cap {};   //емкость (сколько выделено памяти)
@@ -87,31 +87,36 @@ public:
      {
           while( first != last )
           {
-               if( m_size == ( m_cap - 1 ) )
-               {
-                    size_t newSz = m_cap * 2;
-                    T* tmpPtr = new T[ newSz ];
-
-                    int ind = m_cap;
-                    for( auto& el : *this )
-                    {
-                         tmpPtr[ ind++ ] = std::move( el );
-                    }
-
-                    delete[] m_p;
-                    m_p = tmpPtr;
-                    m_begin = m_cap;
-                    m_end = m_begin + m_size;
-                    m_cap = newSz;
-               }
-
-               if( m_begin )
-                    --m_begin;
-               else
-                    m_begin = m_cap - 1;
-               m_p[ m_begin ] = *( --last );
-               ++m_size;
+               pushFront( *( --last ) );
           }
+     }
+
+     void pushFront( const T& obj )
+     {
+         if( m_size == ( m_cap - 1 ) )
+         {
+              size_t newSz = m_cap * 2;
+              std::unique_ptr< T[] > tmp = std::make_unique< T[] >( newSz );
+
+              int ind = m_cap;
+              for( auto& el : *this )
+              {
+                   tmp[ ind++ ] = std::move( el );
+              }
+
+              std::swap( m_p, tmp );
+              m_begin = m_cap;
+              m_end = m_begin + m_size;
+              m_cap = newSz;
+         }
+
+         if( m_begin )
+              --m_begin;
+         else
+              m_begin = m_cap - 1;
+
+         m_p[ m_begin ] = obj;
+         ++m_size;
      }
 
      template< class ForwardIterator >
@@ -130,16 +135,15 @@ public:
                //тут должно быть исключение для полного соотвествия заданию
                //throw std::out_of_range( "container is full" );
                size_t newSz = m_cap * 2;
-               T* tmpPtr = new T[ newSz ];
+               std::unique_ptr< T[] > tmp = std::make_unique< T[] >( newSz );
 
                int ind = 0;
                for( auto& el : *this )
                {
-                    tmpPtr[ ind++ ] = std::move( el );
+                    tmp[ ind++ ] = std::move( el );
                }
 
-               delete[] m_p;
-               m_p = tmpPtr;
+               m_p.swap( tmp );
                m_begin = 0;
                m_end = m_size;
                m_cap = newSz;
@@ -254,8 +258,7 @@ private:
           if( m_cap && size < ( m_cap - 1 ) ) //используем старую память если ее достаточно
                return;
 
-          delete[] m_p;
-          m_p = new T[ size + 1 ];
+          m_p.reset( new T[ size + 1 ]);
           m_cap = size + 1;
      }
 };
@@ -301,8 +304,7 @@ RingBuffer< T >::RingBuffer( std::initializer_list< T > init )
 template< typename T >
 RingBuffer< T >::~RingBuffer()
 {
-     delete[] m_p;
-     m_p = nullptr;
+     m_p.reset();
      m_cap = 0;
      m_size = 0;
      m_begin = 0;
@@ -336,12 +338,13 @@ RingBuffer< T >& RingBuffer< T >::operator=( const RingBuffer& other )
 
 template< typename T >
 RingBuffer< T >::RingBuffer( RingBuffer&& other )
-     : m_p { other.m_p }
-     , m_size { other.m_size }
+     :
+       m_size { other.m_size }
      , m_cap { other.m_cap }
      , m_begin { other.m_begin }
      , m_end { other.m_end }
 {
+     m_p.swap( other.m_p );
      other.m_p = nullptr;
      other.m_size = 0;
      other.m_begin = 0;
@@ -355,15 +358,12 @@ RingBuffer< T >& RingBuffer< T >::operator=( RingBuffer&& other )
      if( this == &other )
           return *this;
 
-     delete[] m_p;
-
-     m_p = other.m_p;
+     m_p.swap( other.m_p );
      m_size = other.m_size;
      m_cap = other.m_cap;
      m_begin = other.m_begin;
      m_end = other.m_end;
 
-     other.m_p = nullptr;
      other.m_size = 0;
      other.m_begin = 0;
      other.m_end = 0;
