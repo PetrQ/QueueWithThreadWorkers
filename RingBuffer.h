@@ -6,26 +6,30 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 
 namespace pkus {
 
+const int s_resize_factor = 2;
+
 /// Кольцевой расширяемый буфер, с динамическим выделением памяти.
 /// T обязан иметь пустой конструктор и конструктор копирования или оператор присваивания
+/// Предоставляет сильную горантию исключений для всех методов
 template< typename T >
 class RingBuffer
 {
      std::unique_ptr< T[] > m_p; //указатель на начало динамического массива
 
-     std::size_t m_size {};  //актуальное количество элементов в очереди
-     std::size_t m_cap {};   //емкость (сколько выделено памяти)
-     std::size_t m_begin {}; //индекс первого элемента в очереди
-     std::size_t m_end {};   //индекс первого свободного элемента в очереди
+     size_t m_size {}; //актуальное количество элементов в очереди
+     size_t m_cap {};  //емкость (сколько выделено памяти). Всегда не меньше 1
+     size_t m_begin {}; //индекс первого элемента в очереди
+     size_t m_end {};   //индекс первого свободного элемента в очереди
 
      template< typename ContainerType >
      class iterator_tmpl
      {
           ContainerType m_container;
-          std::size_t m_index;
+          size_t m_index;
 
      public:
           using iterator_category = std::bidirectional_iterator_tag;
@@ -34,7 +38,7 @@ class RingBuffer
           using pointer = T*;   // or also value_type*
           using reference = T&; // or also value_type&
 
-          iterator_tmpl( ContainerType c, std::size_t ind )
+          iterator_tmpl( ContainerType c, size_t ind )
                : m_container( c )
                , m_index( ind )
           {}
@@ -73,80 +77,141 @@ class RingBuffer
      typedef iterator_tmpl< const RingBuffer< T >* > const_iterator;
 
 public:
-     RingBuffer( size_t size = 11 );
+     RingBuffer( size_t size = 15 );
      RingBuffer( size_t size, const T& defaultVal );
      RingBuffer( std::initializer_list< T > init );
      RingBuffer( const RingBuffer& other );
-     RingBuffer( RingBuffer&& other );
-     RingBuffer< T >& operator=( const RingBuffer& other );
-     RingBuffer< T >& operator=( RingBuffer&& other );
-     ~RingBuffer();
+     RingBuffer( RingBuffer&& other ) noexcept;
+     RingBuffer< T >& operator=( RingBuffer other ) noexcept;
+     ~RingBuffer() noexcept( noexcept( std::is_nothrow_destructible< T >() ) ) {};
 
      template< class ForwardIterator >
      void pushFront( ForwardIterator first, ForwardIterator last )
      {
+          size_t new_cap = m_cap;
+          while( ( last - first ) + m_size >= new_cap )
+          {
+               new_cap *= s_resize_factor;
+          }
+          std::unique_ptr< T[] > storage;
+          size_t tmp_begin = m_begin;
+          size_t tmp_end = m_end;
+          size_t tmp_size = m_size;
+
+          if( new_cap != m_cap )
+          {
+               storage.reset( new T[ new_cap ] );
+
+               int ind = tmp_begin = m_cap;
+               dataMoving( storage, ind );
+               tmp_end = tmp_begin + tmp_size;
+          }
+
+          T* ptr = storage ? storage.get() : m_p.get();
           while( first != last )
           {
-               pushFront( *( --last ) );
+               tmp_begin = ( tmp_begin ? tmp_begin : m_cap ) - 1;
+               ptr[ tmp_begin ] = *( --last );
+               ++tmp_size;
+          }
+          m_begin = tmp_begin;
+          m_size = tmp_size;
+
+          if( storage )
+          {
+               m_p.swap( storage );
+               m_cap = new_cap;
+               m_end = tmp_end;
           }
      }
 
      void pushFront( const T& obj )
      {
-         if( m_size == ( m_cap - 1 ) )
-         {
-              size_t newSz = m_cap * 2;
-              std::unique_ptr< T[] > tmp = std::make_unique< T[] >( newSz );
+          if( m_size == ( m_cap - 1 ) )
+          {
+               size_t new_cap = m_cap * s_resize_factor;
+               std::unique_ptr< T[] > tmp( new T[ new_cap ] );
 
-              int ind = m_cap;
-              for( auto& el : *this )
-              {
-                   tmp[ ind++ ] = std::move( el );
-              }
+               int ind, new_begin;
+               new_begin = ind = m_cap - 1;
+               tmp[ ind++ ] = obj;
+               dataMoving( tmp, ind );
 
-              std::swap( m_p, tmp );
-              m_begin = m_cap;
-              m_end = m_begin + m_size;
-              m_cap = newSz;
-         }
+               std::swap( m_p, tmp );
+               m_begin = new_begin;
+               ++m_size;
+               m_end = m_begin + m_size;
+               m_cap = new_cap;
 
-         if( m_begin )
-              --m_begin;
-         else
-              m_begin = m_cap - 1;
+               return;
+          }
 
-         m_p[ m_begin ] = obj;
-         ++m_size;
+          int new_begin = ( m_begin ? m_begin : m_cap ) - 1; //for exception safety
+          m_p[ new_begin ] = obj;
+          m_begin = new_begin;
+          ++m_size;
      }
 
      template< class ForwardIterator >
      void pushBack( ForwardIterator first, ForwardIterator last )
      {
+          size_t new_cap = m_cap;
+          while( ( last - first ) + m_size >= new_cap )
+          {
+               new_cap *= s_resize_factor;
+          }
+          std::unique_ptr< T[] > storage;
+          size_t tmp_end = m_end;
+          size_t tmp_size = m_size;
+
+          if( new_cap != m_cap )
+          {
+               storage.reset( new T[ new_cap ] );
+
+               int ind = 0;
+               dataMoving( storage, ind );
+               tmp_end = tmp_size = ind;
+          }
+
+          T* ptr = storage ? storage.get() : m_p.get();
           for( ; first != last; ++first )
           {
-               pushBack( *first );
+               ptr[ tmp_end ] = *first;
+               ++tmp_end;
+               if( tmp_end == new_cap )
+                    tmp_end = 0;
+               ++tmp_size;
+          }
+          m_end = tmp_end;
+          m_size = tmp_size;
+
+          if( storage )
+          {
+               m_p.swap( storage );
+               m_cap = new_cap;
+               m_begin = 0;
           }
      }
 
      void pushBack( const T& obj )
      {
-          if( m_size == ( m_cap - 1 ) ) //тут должно быть
+          if( m_size == ( m_cap - 1 ) )
           {
-               //тут должно быть исключение для полного соотвествия заданию
-               //throw std::out_of_range( "container is full" );
-               size_t newSz = m_cap * 2;
-               std::unique_ptr< T[] > tmp = std::make_unique< T[] >( newSz );
+               // тут должно быть исключение для полного соотвествия заданию
+               // throw std::out_of_range("container is full");
+               size_t new_cap = m_cap * 2;
+               std::unique_ptr< T[] > tmp( new T[ new_cap ] );
 
                int ind = 0;
-               for( auto& el : *this )
-               {
-                    tmp[ ind++ ] = std::move( el );
-               }
+               dataMoving( tmp, ind );
+               tmp[ ind++ ] = obj;
 
                m_p.swap( tmp );
                m_begin = 0;
-               m_end = m_size;
-               m_cap = newSz;
+               m_end = m_size = ind;
+               m_cap = new_cap;
+
+               return;
           }
 
           m_p[ m_end ] = obj;
@@ -203,11 +268,11 @@ public:
           m_end = 0;
      }
 
-     inline std::size_t size() const noexcept
+     inline size_t size() const noexcept
      {
           return m_size;
      }
-     inline std::size_t cap() const noexcept
+     inline size_t cap() const noexcept
      {
           return m_cap;
      }
@@ -249,17 +314,25 @@ public:
      };
 
 private:
-     void Init( size_t size )
+     void dataMoving( std::unique_ptr< T[] >& newMemo, int& ind )
      {
-          m_size = size;
-          m_begin = 0;
-          m_end = size;
-
-          if( m_cap && size < ( m_cap - 1 ) ) //используем старую память если ее достаточно
-               return;
-
-          m_p.reset( new T[ size + 1 ]);
-          m_cap = size + 1;
+          //Cильная гарантия:
+          //Перемещаем - если уверены в процессе перемещения не может возникнуть исключение
+          //которое потребует возврата к начальному состоянию. Иначе копируем.
+          if( std::is_nothrow_move_assignable< T >() )
+          {
+               for( auto& el : *this )
+               {
+                    newMemo[ ind++ ] = std::move( el );
+               }
+          }
+          else
+          {
+               for( const auto& el : *this )
+               {
+                    newMemo[ ind++ ] = el;
+               }
+          }
      }
 };
 
@@ -267,9 +340,6 @@ template< typename T >
 RingBuffer< T >::RingBuffer( size_t size )
      : m_p( new T[ size + 1 ] )
      , m_cap { size + 1 }
-     , m_size { 0 }
-     , m_begin { 0 }
-     , m_end { 0 }
 {}
 
 template< typename T >
@@ -282,6 +352,7 @@ RingBuffer< T >::RingBuffer( size_t size, const T& defaultVal )
 {
      for( auto& el : *this )
           el = defaultVal;
+     //not optimal, think about allocate() and unintialized_copy()
 }
 
 template< typename T >
@@ -292,82 +363,40 @@ RingBuffer< T >::RingBuffer( std::initializer_list< T > init )
      , m_begin { 0 }
      , m_end { init.size() }
 {
-     auto it = init.begin();
-
-     for( size_t i = 0; i < m_size; ++i )
-     {
-          m_p[ i ] = std::move( *it );
-          ++it;
-     }
-}
-
-template< typename T >
-RingBuffer< T >::~RingBuffer()
-{
-     m_p.reset();
-     m_cap = 0;
-     m_size = 0;
-     m_begin = 0;
-     m_end = 0;
+     std::move( init.begin(), init.end(), m_p.get() );
+     //in fact make copy because: https://stackoverflow.com/questions/8193102/initializer-list-and-move-semantics
+     //not optimal, think about allocate() and unintialized_copy()
 }
 
 template< typename T >
 RingBuffer< T >::RingBuffer( const RingBuffer& other )
+     : m_p( new T[ other.m_size + 1 ] )
+     , m_cap { other.m_size + 1 }
+     , m_size { other.m_size }
+     , m_begin { 0 }
+     , m_end { other.m_size }
 {
-     Init( other.size() );
-
-     int ind = 0;
-     for( const auto& el : other )
-          m_p[ ind++ ] = el;
+     std::copy( other.begin(), other.end(), m_p.get() );
 }
 
 template< typename T >
-RingBuffer< T >& RingBuffer< T >::operator=( const RingBuffer& other )
-{
-     if( this == &other )
-          return *this;
-
-     Init( other.size() );
-
-     int ind = 0;
-     for( const auto& el : other )
-          m_p[ ind++ ] = el;
-
-     return *this;
-}
-
-template< typename T >
-RingBuffer< T >::RingBuffer( RingBuffer&& other )
-     :
-       m_size { other.m_size }
+RingBuffer< T >::RingBuffer( RingBuffer&& other ) noexcept
+     : m_size { other.m_size }
      , m_cap { other.m_cap }
      , m_begin { other.m_begin }
      , m_end { other.m_end }
 {
      m_p.swap( other.m_p );
-     other.m_p = nullptr;
-     other.m_size = 0;
-     other.m_begin = 0;
-     other.m_end = 0;
-     other.m_cap = 0;
 }
 
 template< typename T >
-RingBuffer< T >& RingBuffer< T >::operator=( RingBuffer&& other )
+RingBuffer< T >& RingBuffer< T >::operator=( RingBuffer other ) noexcept
 {
-     if( this == &other )
-          return *this;
-
      m_p.swap( other.m_p );
-     m_size = other.m_size;
-     m_cap = other.m_cap;
-     m_begin = other.m_begin;
-     m_end = other.m_end;
-
-     other.m_size = 0;
-     other.m_begin = 0;
-     other.m_end = 0;
-     other.m_cap = 0;
+     std::swap( m_size, other.m_size );
+     std::swap( m_cap, other.m_cap );
+     std::swap( m_begin, other.m_begin );
+     std::swap( m_end, other.m_end );
 
      return *this;
 }
