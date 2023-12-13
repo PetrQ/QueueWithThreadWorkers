@@ -69,7 +69,7 @@ public:
           {
                m_container.pushBack( message );
           }
-          catch( const std::range_error& ex )
+          catch( const std::out_of_range& ex )
           {
                return RetCode::NO_SPACE;
           }
